@@ -1,27 +1,57 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"></head>
-<body>
-<!-- This assumes you are importing and starting zerofish exactly as you did in your localhost test -->
-<script type="module">
-  import { ZeroEngine } from './zerofish.js'; // Adjust based on your actual test harness setup
-
-  // Tell TiddlyWiki we are ready
-  window.parent.postMessage('maia-ready', '*');
-
-  window.addEventListener('message', async (e) => {
-    if (e.data && e.data.action === 'go') {
-      // Pass the FEN to your engine calculation logic
-      // e.g., const result = await engine.evaluate(e.data.fen);
-      
-      // When done, send the JSON payload back to TiddlyWiki
-      window.parent.postMessage({
-        bestmove: 'e2e4', // replace with actual result
-        lines: [],
-        engine: 'zero'
-      }, '*');
+<head>
+    <title>Maia Zerofish Bridge</title>
+    <script type="importmap">
+    {
+      "imports": {
+        "zerofishEngine.js": "./zerofishEngine.js"
+      }
     }
-  });
-</script>
+    </script>
+</head>
+<body>
+    <script type="module">
+        import ZeroEngine from './zerofish.js'; 
+
+        ZeroEngine({
+            locator: function(file) { 
+                return file; 
+            }
+        }).then(function(engine) {
+            // Define the network provider Maia requires
+            const maiaNet = {
+                key: 'maia-1900',
+                fetch: async function(key) {
+                    const response = await fetch('./maia-1900.pb.gz');
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = response.body.pipeThrough(ds);
+                    const decompressedResponse = new Response(decompressedStream);
+                    const buffer = await decompressedResponse.arrayBuffer();
+                    return new Uint8Array(buffer);
+                }
+            };
+
+            // Tell TiddlyWiki we are ready
+            window.parent.postMessage('maia-ready', '*');
+
+            // Listen for FENs from the TiddlyWiki parent window
+            window.addEventListener('message', async function(e) {
+                if (e.data && e.data.action === 'go') {
+                    try {
+                        const result = await engine.goZero(e.data.fen, {
+                            net: maiaNet,
+                            nodes: 1,
+                            multipv: 1
+                        });
+                        // Send the JSON result back to TiddlyWiki
+                        window.parent.postMessage(result, '*');
+                    } catch (err) {
+                        console.error("Evaluation error:", err);
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>
