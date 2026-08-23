@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<!-- This assumes you are importing and starting zerofish exactly as you did in your localhost test -->
+<script type="module">
+  import { ZeroEngine } from './zerofish.js'; // Adjust based on your actual test harness setup
+
+  // Tell TiddlyWiki we are ready
+  window.parent.postMessage('maia-ready', '*');
+
+  window.addEventListener('message', async (e) => {
+    if (e.data && e.data.action === 'go') {
+      // Pass the FEN to your engine calculation logic
+      // e.g., const result = await engine.evaluate(e.data.fen);
+      
+      // When done, send the JSON payload back to TiddlyWiki
+      window.parent.postMessage({
+        bestmove: 'e2e4', // replace with actual result
+        lines: [],
+        engine: 'zero'
+      }, '*');
+    }
+  });
+</script>
+</body>
+</html>
